@@ -3,6 +3,7 @@ package ca.ubc.cs317.dict.net;
 import ca.ubc.cs317.dict.model.Database;
 import ca.ubc.cs317.dict.model.Definition;
 import ca.ubc.cs317.dict.model.MatchingStrategy;
+import java.io.InputStreamReader;
 
 import java.io.BufferedReader;
 import java.io.PrintWriter;
@@ -15,6 +16,9 @@ import java.util.*;
 public class DictionaryConnection {
 
     private static final int DEFAULT_PORT = 2628;
+    private Socket socket;
+    private BufferedReader input;
+    private PrintWriter output;
 
     /** Establishes a new connection with a DICT server using an explicit host and port number, and handles initial
      * welcome messages.
@@ -26,7 +30,19 @@ public class DictionaryConnection {
      */
     public DictionaryConnection(String host, int port) throws DictConnectionException {
         // TODO Replace this with code that creates the requested connection
-        throw new DictConnectionException("Not implemented");
+        try {
+            socket = new Socket(host, port);
+            input = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+            output = new PrintWriter(socket.getOutputStream(), true); 
+            String response = input.readLine();
+            if (response == null || !response.startsWith("220")) {
+                throw new DictConnectionException("Expected 220, got " + response);
+            }
+            System.out.println("Connected: " + response);
+        } catch (Exception e) {
+        // Wrap any exception into DictConnectionException
+        throw new DictConnectionException("Error connecting to DICT server at " + host + ":" + port, e);
+        }
     }
 
     /** Establishes a new connection with a DICT server using an explicit host, with the default DICT port number, and
@@ -45,8 +61,19 @@ public class DictionaryConnection {
      *
      */
     public synchronized void close() {
-
-        // TODO Add your code here
+    try {
+        if (socket != null && !socket.isClosed() && output != null) {
+            output.println("QUIT");
+            output.flush();
+            String response = input.readLine();
+                System.out.println("Server response to QUIT: " + response);
+            output.close();
+            input.close();
+            socket.close();
+        }
+        } catch (Exception e) {
+        // Ignore exceptions during closing
+        }
     }
 
     /** Requests and retrieves all definitions for a specific word.
